@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import EditUserModal from './components/EditUserModal'
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deleteUser } from './api';
@@ -14,6 +14,7 @@ const App = () => {
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [nameModal, setNameModal] = useState<string>('')
+  const [searchTerm, setSearchTerm] = useState<string>('')
   const usersPerPage = 8;
 
   const { data: userData, isPending, isSuccess } = useUserData()
@@ -35,10 +36,19 @@ const App = () => {
     })
     : [];
 
-  const totalUsers = isSuccess ? userData.length : 0;
+    const filteredUsers =  sortedUsers.filter(user =>
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.phoneNumber.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    
+
+  const totalUsers = isSuccess ? filteredUsers.length : 0;
   const totalPages = Math.ceil(totalUsers / usersPerPage);
   const startIndex = (currentPage - 1) * usersPerPage;
-  const currentUsers = sortedUsers.slice(startIndex, startIndex + usersPerPage);
+  const currentUsers = filteredUsers.slice(startIndex, startIndex + usersPerPage);
+
 
   // Next Page
   const handleNextPage = () => {
@@ -63,6 +73,10 @@ const App = () => {
     }
   };
 
+  // Search  
+  const handleSearch = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
+  }, []);
   return (
     <div className='w-full h-screen text-4xl  p-10 bg-gray-50'>
       {/* Section 1 */}
@@ -75,7 +89,7 @@ const App = () => {
               <p className='text-lg'>Users</p>
               <i className="fa fa-user text-sm"></i>
             </span>
-            <p className='text-2xl text-blue-500'>{totalUsers}</p>
+            <p className='text-2xl text-blue-500'>{isSuccess && userData.length}</p>
           </div>
         </div>
       </div>
@@ -85,12 +99,15 @@ const App = () => {
           <h5>Users</h5>
           <button className='bg-blue-500 rounded-md px-6 py-2 text-white text-sm' onClick={() => { setNameModal('Create'); setShowEditModal(true) }} >Create User <i className="fa fa-user-plus text-sm"></i></button>
         </span>
+        {/* Search Section */}
         <div className='my-7'>
-          <div className="relative flex">
+          <div className="w-full flex">
             <input
               type="search"
-              className="relative m-0 -me-0.5 block flex-auto rounded-s border border-solid border-neutral-200 bg-transparent bg-clip-padding px-3 py-[0.25rem] text-base font-normal leading-[1.6] text-surface outline-none transition duration-200 ease-in-out placeholder:text-neutral-500 focus:z-[3] focus:border-primary focus:shadow-inset focus:outline-none motion-reduce:transition-none dark:border-white/10 dark:text-white dark:placeholder:text-neutral-200 dark:autofill:shadow-autofill dark:focus:border-primary"
+              className="rounded-md border text-lg p-2 border-neutral-200 bg-transparent placeholder:text-lg placeholder:text-neutral-500 focus:outline-none  "
               placeholder="Search" 
+              value={searchTerm}
+              onChange={handleSearch}
               />
           </div>
         </div>
@@ -161,7 +178,7 @@ const App = () => {
             </table>
             {showEditModal && <EditUserModal onClose={() => { setShowEditModal(false); setSelectedUser('') }} nameModal={nameModal} userId={selectedUser} />}
           </div>
-          {/* Pagination Controls */}
+          {/* Pagination */}
           <nav className='flex justify-end items-center'>
             <ul className="list-style-none mb-6 flex">
               <li>
