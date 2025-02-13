@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react'
 import { editUser, getUser, createUser } from '../api';
 import Loader from './Loader';
 import useUserData from '../hooks/useUserData';
+import { UserReponse } from '../interface';
 
 interface ModalProps {
     onClose: () => void;
@@ -11,12 +12,14 @@ interface ModalProps {
 }
 
 const EditUserModal: React.FC<ModalProps> = ({ onClose, userId, nameModal }) => {
-    const [formData, setFormData] = useState<any>({
+    const [formData, setFormData] = useState<UserReponse>({
         name: '',
         email: '',
         username: '',
         phoneNumber: '',
     });
+    const [errResponse, setErrResponse] = useState<{ [key: string]: string }>({});
+
     const queryClient = new QueryClient()
 
     const {refetch } = useUserData()
@@ -39,6 +42,23 @@ const EditUserModal: React.FC<ModalProps> = ({ onClose, userId, nameModal }) => 
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+        setErrResponse({ ...errResponse, [e.target.name]: '' });
+    };
+
+    const validateForm = () => {
+        let newErrors: { [key: string]: string } = {};
+
+        if (!formData.name.trim()) newErrors.name = 'Name is required';
+        if (!formData.email.trim()) {
+            newErrors.email = 'Email is required';
+        } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+            newErrors.email = 'Invalid email format';
+        }
+        if (!formData.username.trim()) newErrors.username = 'Username is required';
+        if (!formData.phoneNumber.trim()) newErrors.phoneNumber = 'Phone number is required';
+
+        setErrResponse(newErrors);
+        return Object.keys(newErrors).length === 0;
     };
 
     const { mutate: updateUser, isPending: loadingEdit } = useMutation({
@@ -48,10 +68,11 @@ const EditUserModal: React.FC<ModalProps> = ({ onClose, userId, nameModal }) => 
             queryClient.invalidateQueries({ queryKey: ['getUsers'] });
             refetch()
         },
-        onError: () => {
-
+        onError: (err) => {
+           console.log(err)
         }
     });
+
 
     const { mutate: addUser, isPending: loadingCreate } = useMutation({
         mutationFn: async (formUser: any) => await createUser(formUser), 
@@ -60,8 +81,8 @@ const EditUserModal: React.FC<ModalProps> = ({ onClose, userId, nameModal }) => 
             queryClient.invalidateQueries({ queryKey: ['getUsers'] });
             refetch()
         },
-        onError: () => {
-
+        onError: (err) => {
+           console.log(err)
         }
     });
 
@@ -70,6 +91,7 @@ const EditUserModal: React.FC<ModalProps> = ({ onClose, userId, nameModal }) => 
     // Handle form submission
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!validateForm()) return;
         if(nameModal === 'Edit'){
         updateUser(formData); 
         } else{
@@ -87,14 +109,18 @@ const EditUserModal: React.FC<ModalProps> = ({ onClose, userId, nameModal }) => 
                 <h2 className="text-xl font-semibold mb-4">{nameModal} User</h2>
                 <form className='w-full'>
                     <input type="text" className='border p-1 text-lg w-full rounded-md mb-2' placeholder='Name' name="name" value={formData.name} onChange={handleChange} />
+                    {errResponse.name && <p className="text-red-500 text-sm">{errResponse.name}</p>}
                     <input type="text" className='border p-1 text-lg w-full rounded-md mb-2' placeholder='Email' name="email"
                         value={formData.email} onChange={handleChange} />
+                        {errResponse.email && <p className="text-red-500 text-sm">{errResponse.email}</p>}
                     <input type="text" className='border p-1 text-lg w-full rounded-md mb-2' placeholder='UserName' name="username"
                         value={formData.username}
                         onChange={handleChange} />
+                        {errResponse.username && <p className="text-red-500 text-sm">{errResponse.username}</p>}
                     <input type="text" className='border p-1 text-lg w-full rounded-md mb-2' placeholder='Phone Number' name="phoneNumber"
                         value={formData.phoneNumber}
                         onChange={handleChange} />
+                        {errResponse.phoneNumber && <p className="text-red-500 text-sm">{errResponse.phoneNumber}</p>}
                     <div className='w-full my-4'>
 
                         <button className='bg-blue-500 text-sm text-white py-2 px-6 rounded-md flex gap-2 items-center' onClick={handleSubmit}>
