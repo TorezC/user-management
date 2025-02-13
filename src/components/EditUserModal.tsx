@@ -1,15 +1,16 @@
 import { QueryClient, useMutation, useQuery } from '@tanstack/react-query';
-import { AnyAaaaRecord } from 'dns';
 import React, { useEffect, useState } from 'react'
-import { editUser, getUser } from '../api';
+import { editUser, getUser, createUser } from '../api';
 import Loader from './Loader';
+import useUserData from '../hooks/useUserData';
 
 interface ModalProps {
     onClose: () => void;
     userId?: any
+    nameModal: string
 }
 
-const EditUserModal: React.FC<ModalProps> = ({ onClose, userId }) => {
+const EditUserModal: React.FC<ModalProps> = ({ onClose, userId, nameModal }) => {
     const [formData, setFormData] = useState<any>({
         name: '',
         email: '',
@@ -18,7 +19,8 @@ const EditUserModal: React.FC<ModalProps> = ({ onClose, userId }) => {
     });
     const queryClient = new QueryClient()
 
-    const { data: user, isSuccess, isPending} = useQuery({
+    const {refetch } = useUserData()
+    const { data: user, isSuccess} = useQuery({
         queryKey: ['getUser', userId],
         queryFn: () => getUser(userId),
         enabled: !!userId,
@@ -33,26 +35,46 @@ const EditUserModal: React.FC<ModalProps> = ({ onClose, userId }) => {
                 phoneNumber: user.phoneNumber,
             });
         } 
-    }, [isSuccess])
+    }, [isSuccess, user])
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const mutation = useMutation({
-        mutationFn: (updatedUser: any) => editUser(userId, updatedUser), // API call
+    const { mutate: updateUser, isPending: loadingEdit } = useMutation({
+        mutationFn: async (updatedUser: any) => await editUser(userId, updatedUser), 
         onSuccess: () => {
             onClose();
-            queryClient.invalidateQueries({ queryKey: ['getUser'] }); // Refresh user list
+            queryClient.invalidateQueries({ queryKey: ['getUsers'] });
+            refetch()
         },
+        onError: () => {
+
+        }
     });
+
+    const { mutate: addUser, isPending: loadingCreate } = useMutation({
+        mutationFn: async (formUser: any) => await createUser(formUser), 
+        onSuccess: () => {
+            onClose();
+            queryClient.invalidateQueries({ queryKey: ['getUsers'] });
+            refetch()
+        },
+        onError: () => {
+
+        }
+    });
+
 
     
     // Handle form submission
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-            mutation.mutate(formData); // Send update request
-            // refetch()
+        if(nameModal === 'Edit'){
+        updateUser(formData); 
+        } else{
+        addUser(formData)
+        }
     };
 
     return (
@@ -62,7 +84,7 @@ const EditUserModal: React.FC<ModalProps> = ({ onClose, userId }) => {
                 }>
                     ✖
                 </button>
-                <h2 className="text-xl font-semibold mb-4">Edit User</h2>
+                <h2 className="text-xl font-semibold mb-4">{nameModal} User</h2>
                 <form className='w-full'>
                     <input type="text" className='border p-1 text-lg w-full rounded-md mb-2' placeholder='Name' name="name" value={formData.name} onChange={handleChange} />
                     <input type="text" className='border p-1 text-lg w-full rounded-md mb-2' placeholder='Email' name="email"
@@ -73,11 +95,12 @@ const EditUserModal: React.FC<ModalProps> = ({ onClose, userId }) => {
                     <input type="text" className='border p-1 text-lg w-full rounded-md mb-2' placeholder='Phone Number' name="phoneNumber"
                         value={formData.phoneNumber}
                         onChange={handleChange} />
-                    <div className='text-right w-full mb-2'>
+                    <div className='w-full my-4'>
 
-                        <button className='bg-blue-500 text-sm text-white py-2 px-6 rounded-md ' onClick={handleSubmit}>
-                            Edit {isPending && <Loader/>}
+                        <button className='bg-blue-500 text-sm text-white py-2 px-6 rounded-md flex gap-2 items-center' onClick={handleSubmit}>
+                            <span>{nameModal}</span> { (nameModal === 'Edit' ? loadingEdit : loadingCreate )&& <Loader color={'text-white'} />}
                         </button>
+
                     </div>
                 </form>
             </div>

@@ -47,6 +47,22 @@ export const editUser = async (userId: string, updatedUser: any) => {
     return response.json();
 };
 
+export const createUser = async (createUser: any) => {
+    const response = await fetch(`${baseURL}/users`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(createUser),
+    });
+
+    if (!response.ok) {
+        throw new Error("Failed to create user");
+    }
+
+    return response.json();
+};
+
 export const deleteUser = async (userId: string) => {
     const response = await fetch(`${baseURL}/users/${userId}`, {
       method: 'DELETE',

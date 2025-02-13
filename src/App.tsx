@@ -1,35 +1,34 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import EditUserModal from './components/EditUserModal'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { deleteUser, getUsers } from './api';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { deleteUser } from './api';
 import Loader from './components/Loader';
+import useUserData from './hooks/useUserData';
 
 const App = () => {
   const queryClient = useQueryClient();
 
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [selectedUser, setSelectedUser] = useState<number>();
+  const [selectedUser, setSelectedUser] = useState<string>();
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [nameModal, setNameModal] = useState<string>('')
   const usersPerPage = 8;
 
-  const { data: userData, isPending, isSuccess } = useQuery({
-    queryKey: ['getUsers'],
-    queryFn: getUsers
-  });
+  const { data: userData, isPending, isSuccess } = useUserData()
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      await deleteUser(userId); // API call to delete user
+      await deleteUser(userId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['getUsers']}); // Refresh user list
+      queryClient.invalidateQueries({ queryKey: ['getUsers'] });
     },
   });
   const sortedUsers = isSuccess
     ? [...userData].sort((a, b) => {
-      if (!sortColumn) return 0; 
+      if (!sortColumn) return 0;
       const valA = a[sortColumn].toLowerCase();
       const valB = b[sortColumn].toLowerCase();
       return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
@@ -58,9 +57,9 @@ const App = () => {
   };
 
   // Delete User
-   const handleDeleteUser = (userId: string) => {
+  const handleDeleteUser = (userId: string) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
-      deleteUserMutation.mutate(userId); 
+      deleteUserMutation.mutate(userId);
     }
   };
 
@@ -84,8 +83,17 @@ const App = () => {
       <div>
         <span className='flex justify-between items-center'>
           <h5>Users</h5>
-          <button className='bg-blue-500 rounded-md px-6 py-2 text-white text-sm' >Create User <i className="fa fa-user-plus text-sm"></i></button>
+          <button className='bg-blue-500 rounded-md px-6 py-2 text-white text-sm' onClick={() => { setNameModal('Create'); setShowEditModal(true) }} >Create User <i className="fa fa-user-plus text-sm"></i></button>
         </span>
+        <div className='my-7'>
+          <div className="relative flex">
+            <input
+              type="search"
+              className="relative m-0 -me-0.5 block flex-auto rounded-s border border-solid border-neutral-200 bg-transparent bg-clip-padding px-3 py-[0.25rem] text-base font-normal leading-[1.6] text-surface outline-none transition duration-200 ease-in-out placeholder:text-neutral-500 focus:z-[3] focus:border-primary focus:shadow-inset focus:outline-none motion-reduce:transition-none dark:border-white/10 dark:text-white dark:placeholder:text-neutral-200 dark:autofill:shadow-autofill dark:focus:border-primary"
+              placeholder="Search" 
+              />
+          </div>
+        </div>
         <div>
           <div className="relative overflow-x-auto shadow-md sm:rounded-lg my-5">
 
@@ -124,7 +132,7 @@ const App = () => {
                 </tr>
               </thead>
               <tbody>
-                {isPending ? <Loader /> :
+                {isPending ? <Loader color='text-blue-500' spacing='my-10' /> :
                   currentUsers.map((user: any) => (
                     <tr
                       className="bg-white border-b hover:bg-blue-50 ">
@@ -144,14 +152,14 @@ const App = () => {
                         {user.phoneNumber}
                       </td>
                       <td className="px-6 py-4 text-white flex gap-2 items-center">
-                        <button className='bg-blue-500 rounded-md px-6 py-1 text-sm' disabled={isPending} onClick={() =>{setSelectedUser(user.id); setShowEditModal(true)}}>Edit</button> <button className='bg-red-500 rounded-md px-6 py-1 text-sm' onClick={() => {handleDeleteUser(user.id)}}>Delete</button>
+                        <button className='bg-blue-500 rounded-md px-6 py-1 text-sm' onClick={() => { setSelectedUser(user.id); setNameModal('Edit'); setShowEditModal(true) }}>Edit</button> <button className='bg-red-500 rounded-md px-6 py-1 text-sm' onClick={() => { handleDeleteUser(user.id) }}>Delete</button>
                       </td>
                     </tr>
                   ))
                 }
               </tbody>
             </table>
-                {showEditModal && <EditUserModal  onClose={() => setShowEditModal(false)} userId={selectedUser} />}
+            {showEditModal && <EditUserModal onClose={() => { setShowEditModal(false); setSelectedUser('') }} nameModal={nameModal} userId={selectedUser} />}
           </div>
           {/* Pagination Controls */}
           <nav className='flex justify-end items-center'>
